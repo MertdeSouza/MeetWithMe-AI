@@ -1,0 +1,3 @@
+Which programming language was mentioned?
+What technology will the team use?
+Who mentioned Python as the main programming language?
