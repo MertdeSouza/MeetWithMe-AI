@@ -6,7 +6,7 @@ import speaker_detector
 import os
 from ffmpeg_setup import setup_ffmpeg
 
-FFMPEG_BIN = r"C:\Users\Mehmet Mert Arslan\Downloads\ffmpeg-9.0.2-essentials_build\ffmpeg-9.0.2-essentials_build\bin"
+FFMPEG_BIN = r"C:\Users\Mehmet Mert Arslan\Downloads\ffmpeg-9.0.2-full_build-shared\ffmpeg-9.0.2-full_build-shared\bin"
 
 os.environ["PATH"] = FFMPEG_BIN + os.pathsep + os.environ["PATH"]
 
