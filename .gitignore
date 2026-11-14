@@ -222,3 +222,6 @@ __marimo__/
 transcript.txt
 report.txt
 ai_report.txt
+live_report*.txt
+live_transcript*.txt
+*.waw
