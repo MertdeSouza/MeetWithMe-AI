@@ -1,13 +1,17 @@
 
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
+import numpy as np
 import torch
 from dotenv import load_dotenv
 from pyannote.audio import Pipeline
 
 
 MODEL_NAME = "pyannote/speaker-diarization-community-1"
+SAMPLE_RATE = 16000
 
 
 def load_diarization_model():
@@ -18,9 +22,7 @@ def load_diarization_model():
     hf_token = os.getenv("HF_TOKEN")
 
     if not hf_token:
-        raise ValueError(
-            "HF_TOKEN was not found in the environment."
-        )
+        raise ValueError("HF_TOKEN was not found in the environment.")
 
     pipeline = Pipeline.from_pretrained(
         MODEL_NAME,
@@ -28,9 +30,7 @@ def load_diarization_model():
     )
 
     if pipeline is None:
-        raise RuntimeError(
-            "Failed to load the diarization model."
-        )
+        raise RuntimeError("Failed to load the diarization model.")
 
     device = (
         torch.device("cuda")
@@ -45,6 +45,58 @@ def load_diarization_model():
     return pipeline
 
 
+def load_audio_with_ffmpeg(audio_path):
+    """Decode audio using FFmpeg instead of TorchCodec."""
+
+    ffmpeg_path = shutil.which("ffmpeg")
+
+    if not ffmpeg_path:
+        raise RuntimeError("FFmpeg was not found in PATH.")
+
+    command = [
+        ffmpeg_path,
+        "-nostdin",
+        "-v", "error",
+        "-i", str(audio_path),
+        "-map", "0:a:0",
+        "-vn",
+        "-f", "f32le",
+        "-acodec", "pcm_f32le",
+        "-ac", "1",
+        "-ar", str(SAMPLE_RATE),
+        "pipe:1"
+    ]
+
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        check=False
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"FFmpeg audio decoding failed: "
+            f"{result.stderr.decode(errors='replace')}"
+        )
+
+    audio_array = np.frombuffer(
+        result.stdout,
+        dtype=np.float32
+    ).copy()
+
+    if audio_array.size == 0:
+        raise RuntimeError("FFmpeg returned empty audio.")
+
+    waveform = torch.from_numpy(
+        audio_array
+    ).unsqueeze(0)
+
+    return {
+        "waveform": waveform,
+        "sample_rate": SAMPLE_RATE
+    }
+
+
 def detect_speakers(audio_path):
     """Detect speakers and their speaking intervals."""
 
@@ -55,13 +107,16 @@ def detect_speakers(audio_path):
             f"Audio file not found: {audio_path}"
         )
 
+    print("Loading audio with FFmpeg...")
+
+    audio = load_audio_with_ffmpeg(audio_path)
+
     pipeline = load_diarization_model()
 
     print("Detecting speakers...")
 
-    output = pipeline(str(audio_path))
+    output = pipeline(audio)
 
-    # Support both current and older pipeline outputs.
     diarization = getattr(
         output,
         "speaker_diarization",
@@ -83,10 +138,11 @@ def detect_speakers(audio_path):
         key=lambda item: item["start"]
     )
 
-    print(
-        f"Detected {len(set(item['speaker'] for item in speaker_segments))} "
-        "unique speakers."
-    )
+    unique_speakers = len({
+        item["speaker"] for item in speaker_segments
+    })
+
+    print(f"Detected {unique_speakers} unique speakers.")
 
     return speaker_segments
 

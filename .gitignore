@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+transcript.txt
+report.txt
+ai_report.txt

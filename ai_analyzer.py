@@ -22,11 +22,12 @@ REPORT_FILE = Path("ai_report.txt")
 # GEMINI CONFIGURATION
 # ==========================================
 
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-3.6-flash"
 CHUNK_SIZE = 12000
 
-MAX_RETRIES = 3
-INITIAL_RETRY_DELAY = 5
+MAX_RETRIES = 6
+INITIAL_RETRY_DELAY = 10
+MAX_RETRY_DELAY = 120
 
 
 # ==========================================
@@ -153,27 +154,41 @@ def call_gemini_with_retry(client, prompt, chunk_number):
 
             error_message = str(error).lower()
 
+            # Some SDK errors keep the HTTP status only in an
+            # attribute, not in the message text.
+            status_code = (
+                getattr(error, "code", None)
+                or getattr(error, "status_code", None)
+            )
+
             retryable_errors = [
                 "429",
                 "500",
                 "502",
                 "503",
                 "504",
-                "service_unavailable",
-                "temporarily unavailable",
+                "unavailable",
+                "overloaded",
+                "high demand",
                 "timeout",
                 "rate limit"
             ]
 
-            should_retry = any(
-                code in error_message
-                for code in retryable_errors
+            should_retry = (
+                status_code in {429, 500, 502, 503, 504}
+                or any(
+                    code in error_message
+                    for code in retryable_errors
+                )
             )
 
             if not should_retry or attempt == MAX_RETRIES:
                 raise
 
-            wait_time = INITIAL_RETRY_DELAY * (2 ** (attempt - 1))
+            wait_time = min(
+                INITIAL_RETRY_DELAY * (2 ** (attempt - 1)),
+                MAX_RETRY_DELAY
+            )
 
             print(
                 f"\nGemini temporary error: {error}"

@@ -1,17 +1,17 @@
-from pathlib import Path
-from faster_whisper import WhisperModel
+
 import re
-import ai_analyzer
-import speaker_detector
-import os
+from pathlib import Path
+
+# Configure FFmpeg before loading audio libraries
 from ffmpeg_setup import setup_ffmpeg
 
-FFMPEG_BIN = r"C:\Users\Mehmet Mert Arslan\Downloads\ffmpeg-9.0.2-essentials_build\ffmpeg-9.0.2-essentials_build\bin"
+setup_ffmpeg()
 
-os.environ["PATH"] = FFMPEG_BIN + os.pathsep + os.environ["PATH"]
+from faster_whisper import WhisperModel
 
-if hasattr(os, "add_dll_directory"):
-    os.add_dll_directory(FFMPEG_BIN)
+import ai_analyzer
+import speaker_detector
+
 
 # FILE PATHS
 QUESTIONS_FILE = Path("questions.txt")
@@ -89,7 +89,9 @@ def find_relevant_answers(segments, questions):
                     "timestamp": segment["timestamp"],
                     "text": segment["text"],
                     "score": score,
-                    "speaker": segment.get("speaker", "Unknown")
+                    "speaker": segment.get(
+                        "speaker", "Unknown"
+                    )
                 })
 
         matches.sort(
@@ -127,7 +129,8 @@ def generate_report(results):
 
             lines.append(
                 f"[{minutes:02d}:{seconds:02d}] "
-                f"[{answer.get('speaker', 'Unknown')}] {answer['text']}"
+                f"[{answer.get('speaker', 'Unknown')}] "
+                f"{answer['text']}"
             )
 
     REPORT_FILE.write_text(
@@ -158,8 +161,6 @@ def main():
 
     print("\n=== MEETWITHME AI ===")
 
-    setup_ffmpeg()
-    
     audio_path = input(
         "Enter the audio file path: "
     ).strip().strip('"')
@@ -207,10 +208,11 @@ def main():
             "text": text
         })
 
-        print(
-            f"[{segment.start:.1f}s] {text}"
-        )
+        print(f"[{segment.start:.1f}s] {text}")
 
+    if not transcript_segments:
+        print("ERROR: No speech was detected!")
+        return
 
     print("\nStarting speaker diarization...")
 
@@ -222,10 +224,6 @@ def main():
         transcript_segments,
         speaker_segments
     )
-
-    if not transcript_segments:
-        print("ERROR: No speech was detected!")
-        return
 
     print(f"\nDetected language: {info.language}")
     print("\nSaving transcript...")

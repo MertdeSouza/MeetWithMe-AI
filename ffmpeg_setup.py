@@ -9,15 +9,17 @@ _DLL_HANDLES = []
 
 
 def setup_ffmpeg():
+    """Automatically detect and configure FFmpeg."""
 
     print("\nChecking FFmpeg installation...")
 
-    # 1. Check PATH
     ffmpeg_path = shutil.which("ffmpeg")
 
     if ffmpeg_path:
-        ffmpeg_dir = Path(ffmpeg_path).parent
-        print(f"FFmpeg found in PATH: {ffmpeg_path}")
+        ffmpeg_exe = Path(ffmpeg_path).resolve()
+        ffmpeg_dir = ffmpeg_exe.parent
+
+        print(f"FFmpeg found in PATH: {ffmpeg_exe}")
 
     else:
         print("\nFFmpeg was not found in PATH.")
@@ -28,33 +30,38 @@ def setup_ffmpeg():
 
         if not user_path:
             raise RuntimeError(
-                "FFmpeg is required but was not found. "
-                "Please install FFmpeg and add it to PATH."
+                "FFmpeg is required. Please install FFmpeg "
+                "and add it to PATH."
             )
 
-        path = Path(user_path).expanduser()
+        path = Path(user_path).expanduser().resolve()
 
         if path.is_dir():
             ffmpeg_dir = path
-            ffmpeg_exe = path / "ffmpeg.exe"
-
-            if not ffmpeg_exe.exists():
-                ffmpeg_exe = path / "ffmpeg"
+            ffmpeg_exe = ffmpeg_dir / (
+                "ffmpeg.exe" if sys.platform == "win32"
+                else "ffmpeg"
+            )
         else:
             ffmpeg_exe = path
             ffmpeg_dir = path.parent
 
-        if not ffmpeg_exe.exists():
+        if not ffmpeg_exe.is_file():
             raise RuntimeError(
-                f"FFmpeg executable not found at: {ffmpeg_exe}"
+                f"FFmpeg executable not found: {ffmpeg_exe}"
             )
 
-    # 2. Add FFmpeg directory to PATH
-    os.environ["PATH"] = (
-        str(ffmpeg_dir) + os.pathsep + os.environ.get("PATH", "")
-    )
+    # Add FFmpeg directory to PATH only if necessary
+    current_paths = os.environ.get("PATH", "").split(os.pathsep)
 
-    # 3. Register DLL directory and keep handle alive
+    if str(ffmpeg_dir) not in current_paths:
+        os.environ["PATH"] = (
+            str(ffmpeg_dir)
+            + os.pathsep
+            + os.environ.get("PATH", "")
+        )
+
+    # Register DLL directory on Windows
     if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
         _DLL_HANDLES.append(
             os.add_dll_directory(str(ffmpeg_dir))
