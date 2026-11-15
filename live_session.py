@@ -225,8 +225,8 @@ class LiveSession:
             client = self._client_factory()
             if client is None:
                 self.warning = (
-                    "GEMINI_API_KEY bulunamadı: yazıya çevirme çalışır ama "
-                    "cevaplar bulunamaz."
+                    "GEMINI_API_KEY not found: transcription works, but answers "
+                    "will not be found."
                 )
             else:
                 options = {}

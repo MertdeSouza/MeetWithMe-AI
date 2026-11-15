@@ -1,4 +1,7 @@
 faster-whisper==1.2.1
 google-genai>=1.55.0
 python-dotenv
-pyannote.audio
+pyannote.audio>=4.0
+numpy
+flask
+PyAudioWPatch; sys_platform == "win32"

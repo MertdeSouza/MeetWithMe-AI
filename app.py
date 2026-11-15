@@ -196,7 +196,7 @@ async function api(path, options) {
     try { data = await response.json(); } catch (e) {}
     return { ok: response.ok, data };
   } catch (e) {
-    return { ok: false, data: { error: "Sunucuya ulaşılamıyor." } };
+    return { ok: false, data: { error: "Cannot reach the server." } };
   }
 }
 const post = (path, body) => api(path, {
@@ -297,7 +297,7 @@ async function refresh() {
     $("stop").disabled = !(s.state === "listening" || s.state === "loading");
     $("loadset").disabled = s.state !== "idle";
 
-    showBanner("error", s.error || (s.last_error ? "Hata: " + s.last_error : ""), "err");
+    showBanner("error", s.error || (s.last_error ? "Error: " + s.last_error : ""), "err");
     showBanner("warning", s.warning, "warn");
 
     renderQuestions(s.questions, running);
@@ -353,9 +353,9 @@ $("loadset").addEventListener("click", async () => {
   const name = $("sets").value;
   if (!name) return;
   const loaded = await api("/api/sets/" + encodeURIComponent(name));
-  if (!loaded.ok) { $("setmsg").textContent = (loaded.data && loaded.data.error) || "Yüklenemedi."; return; }
+  if (!loaded.ok) { $("setmsg").textContent = (loaded.data && loaded.data.error) || "Could not load."; return; }
   const result = await post("/api/questions/replace", { questions: loaded.data.questions });
-  $("setmsg").textContent = result.ok ? "'" + name + "' yüklendi." : (result.data && result.data.error) || "Yüklenemedi.";
+  $("setmsg").textContent = result.ok ? "Loaded '" + name + "'." : (result.data && result.data.error) || "Could not load.";
   refresh();
 });
 
@@ -363,7 +363,7 @@ $("saveset").addEventListener("click", async () => {
   const name = $("setname").value.trim();
   const snapshot = await api("/api/state");
   const result = await post("/api/sets", { name, questions: snapshot.data.questions });
-  $("setmsg").textContent = result.ok ? "'" + name + "' kaydedildi." : (result.data && result.data.error) || "Kaydedilemedi.";
+  $("setmsg").textContent = result.ok ? "Saved '" + name + "'." : (result.data && result.data.error) || "Could not save.";
   if (result.ok) { $("setname").value = ""; loadSets(name); }
 });
 
@@ -388,14 +388,14 @@ def create_app(session):
         # Only this computer, and only our own page, may talk to the server.
         # This stops other websites from controlling it through the browser.
         if request.host.split(":")[0] not in ALLOWED_HOSTS:
-            return jsonify(error="Erişim reddedildi."), 403
+            return jsonify(error="Access denied."), 403
 
         origin = request.headers.get("Origin")
         if origin and origin.rstrip("/") != f"http://{request.host}":
-            return jsonify(error="Erişim reddedildi."), 403
+            return jsonify(error="Access denied."), 403
 
         if request.method == "POST" and not request.is_json:
-            return jsonify(error="JSON gerekli."), 415
+            return jsonify(error="JSON required."), 415
 
     @app.after_request
     def security_headers(response):
@@ -422,13 +422,13 @@ def create_app(session):
         try:
             session.start()
         except RuntimeError:
-            return jsonify(error="Zaten çalışıyor."), 409
+            return jsonify(error="A session is already running."), 409
         return jsonify(ok=True)
 
     @app.post("/api/stop")
     def stop():
         if not session.stop():
-            return jsonify(error="Durdurulacak bir oturum yok."), 409
+            return jsonify(error="There is no session to stop."), 409
         return jsonify(ok=True)
 
     @app.post("/api/questions/add")
@@ -436,9 +436,9 @@ def create_app(session):
         body = request.get_json(silent=True) or {}
         cleaned = clean_questions([body.get("question", "")])
         if not cleaned:
-            return jsonify(error="Geçersiz soru."), 400
+            return jsonify(error="Invalid question."), 400
         if len(session.questions) >= MAX_QUESTIONS:
-            return jsonify(error="Çok fazla soru."), 400
+            return jsonify(error="Too many questions."), 400
         session.add_question(cleaned[0])
         return jsonify(ok=True)
 
@@ -453,11 +453,11 @@ def create_app(session):
         body = request.get_json(silent=True) or {}
         cleaned = clean_questions(body.get("questions"))
         if cleaned is None:
-            return jsonify(error="Geçersiz soru listesi."), 400
+            return jsonify(error="Invalid question list."), 400
         if not session.replace_questions(cleaned):
             return jsonify(
-                error="Toplantı sürerken set yüklenemez. "
-                      "Soruları tek tek ekleyin."
+                error="A set cannot be loaded during a meeting. "
+                      "Add questions one by one."
             ), 409
         return jsonify(ok=True)
 
@@ -469,9 +469,9 @@ def create_app(session):
     def read_set(name):
         path = set_path(name)
         if path is None:
-            return jsonify(error="Geçersiz set adı."), 400
+            return jsonify(error="Invalid set name."), 400
         if not path.is_file():
-            return jsonify(error="Set bulunamadı."), 404
+            return jsonify(error="Set not found."), 404
         return jsonify(questions=LA.load_questions(path))
 
     @app.post("/api/sets")
@@ -481,12 +481,12 @@ def create_app(session):
         path = set_path(name)
         if path is None:
             return jsonify(
-                error="Set adı yalnızca harf, rakam, boşluk, - ve _ içerebilir."
+                error="Set names may only contain letters, digits, spaces, - and _."
             ), 400
 
         cleaned = clean_questions(body.get("questions"))
         if not cleaned:
-            return jsonify(error="Kaydedilecek soru yok."), 400
+            return jsonify(error="There are no questions to save."), 400
 
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(cleaned) + "\n", encoding="utf-8")
@@ -496,7 +496,7 @@ def create_app(session):
     def report():
         text = session.report_text()
         if text is None:
-            return jsonify(error="Rapor yok."), 404
+            return jsonify(error="No report available."), 404
         return Response(text, mimetype="text/plain; charset=utf-8")
 
     return app
