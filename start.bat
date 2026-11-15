@@ -8,7 +8,6 @@ if not exist .venv\Scripts\python.exe (
     exit /b 1
 )
 
-call .venv\Scripts\activate.bat
-python app.py
+.venv\Scripts\python.exe app.py
 echo.
 pause

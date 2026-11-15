@@ -6,30 +6,45 @@ echo  MeetWithMe AI - Setup
 echo ==============================
 echo.
 
-where py >nul 2>nul
-if errorlevel 1 goto nopython
+set "PYCMD="
 
 py -3.11 --version >nul 2>nul
-if errorlevel 1 goto nopython
+if not errorlevel 1 set "PYCMD=py -3.11"
+
+if not defined PYCMD (
+    py -3 --version >nul 2>nul
+    if not errorlevel 1 set "PYCMD=py -3"
+)
+
+if not defined PYCMD (
+    python --version >nul 2>nul
+    if not errorlevel 1 set "PYCMD=python"
+)
+
+if not defined PYCMD goto nopython
+
+echo Using:
+%PYCMD% --version
+
+%PYCMD% -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"
+if errorlevel 1 goto oldpython
 
 if not exist .venv\Scripts\python.exe (
     echo Creating virtual environment...
-    py -3.11 -m venv .venv
+    %PYCMD% -m venv .venv
     if errorlevel 1 goto failed
 )
 
-call .venv\Scripts\activate.bat
-
-echo Installing packages (this can take a few minutes the first time)...
-python -m pip install --upgrade pip
-python -m pip install -r requirements-live.txt
+echo Installing packages. The first time this can take a few minutes...
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r requirements.txt
 if errorlevel 1 goto failed
 
 if not exist .env (
     > .env echo GEMINI_API_KEY=
     echo.
     echo A .env file was created. In the file that opens, type your own
-    echo Gemini API key after GEMINI_API_KEY= and save it.
+    echo Gemini API key after GEMINI_API_KEY= and save the file.
     notepad .env
 )
 
@@ -39,15 +54,21 @@ pause
 exit /b 0
 
 :nopython
-echo Python 3.11 was not found.
+echo No working Python was found.
+echo Tried: py -3.11, py -3 and python.
 echo Install Python 3.11 from https://www.python.org/downloads/
-echo During setup, tick "Add python.exe to PATH",
-echo then run this file again.
+echo During setup, tick "Add python.exe to PATH", then run this file again.
+echo If Python came from the Microsoft Store, install it from python.org instead.
+pause
+exit /b 1
+
+:oldpython
+echo This Python is too old. Python 3.9 or newer is required, 3.11 is recommended.
 pause
 exit /b 1
 
 :failed
 echo.
-echo Setup failed. Please note the error message above.
+echo Setup failed. Please copy the error message above and send it to the author.
 pause
 exit /b 1
