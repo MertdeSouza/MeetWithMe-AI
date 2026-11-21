@@ -1,4 +1,4 @@
-s# MeetWithMe AI
+# MeetWithMe AI
 
 MeetWithMe AI listens to the audio playing on your computer (for example a Zoom meeting), transcribes it live and checks it against questions that you define. Every answer comes with a word-for-word quote from the transcript, a timestamp and a speaker label. If the transcript does not support an answer, there is no answer.
 
@@ -25,8 +25,8 @@ MeetWithMe AI does **not** join a meeting as a participant. It listens to what y
 | Question tracking with verified answers | Implemented, tested the same way |
 | Local web interface (questions, sets, start/stop, answers) | Implemented, tested |
 | File mode (`main.py`) with speaker separation | Implemented, tested |
-| A real Zoom meeting | **Not tested yet** |
-| Long meetings, transcription speed on slow computers | **Not tested yet** |
+| A real Zoom meeting (about 54 minutes of Turkish speech) | Tested once by the author: transcript and report were produced |
+| Transcription speed on slow computers | **Not tested yet** |
 | Speaker names in live mode | Not implemented, every line is labelled `Unknown` |
 | Your own microphone | Not implemented, only what comes out of the speakers is captured |
 | Voice answers in the meeting | Not implemented |
@@ -123,7 +123,7 @@ python main.py
 
 ## Troubleshooting
 
-- **Gemini returns 503 ("high demand").** The model is temporarily overloaded. The program retries with growing pauses. Run `python test_models.py` to see which models answer right now, then set `MODEL_NAME` in `ai_analyzer.py`. `test_gemini.py` tests a single connection.
+- **Gemini returns 503 ("high demand").** The model is temporarily overloaded. The program retries with growing pauses. Run `python tests/test_models.py` to see which models answer right now, then set `MODEL_NAME` in `ai_analyzer.py`.
 - **Nothing is transcribed.** Check that sound is really playing through your default output device. If the lines pile up ("waiting" keeps growing in the terminal version), the computer is too slow for the `small` Whisper model. Try `base`.
 - **A pause never ends a piece.** Background music keeps the level high. Increase `SILENCE_RMS` in `live_listen.py`.
 
@@ -141,6 +141,8 @@ python main.py
 - All speakers are labelled `Unknown` in live mode.
 - If Gemini rewrites a question heavily, its answer is dropped instead of being filed under the wrong question.
 - Transcription quality depends on the audio. Music, echo and overlapping speakers lower it.
+- Names and foreign terms are often misheard (for example university names and exam names). The quoted evidence matches the transcript, not necessarily the real spelling.
+- Only the quoted evidence is verified word for word. The answer text can say more than the quote shows, and the confidence labels are not reliable. Check important facts against the quote.
 
 ## Project structure
 
@@ -155,7 +157,7 @@ python main.py
 | `speaker_detector.py` | Speaker separation (pyannote) for file mode |
 | `ffmpeg_setup.py` | FFmpeg detection for file mode |
 | `setup.bat`, `start.bat` | Windows setup and start scripts |
-| `test_gemini.py`, `test_models.py` | Gemini connection and model checks |
+| `tests/test_models.py` | Checks which Gemini models answer right now |
 
 ## Roadmap
 
